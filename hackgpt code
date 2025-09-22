@@ -1,0 +1,229 @@
+"""
+GPT-5 Desktop Chat App - All-in-One
+===================================
+
+This single file contains:
+
+1. GPT-5 desktop chat app (Free / Plus / Premium tiers)
+2. Dark mode GUI
+3. Local subscription memory
+4. External website signup & payment button
+5. Unlock code input
+6. Premium features: temperature slider & system prompt
+7. GitHub instructions and .gitignore info embedded below
+"""
+
+import tkinter as tk
+from tkinter import simpledialog, scrolledtext, END, messagebox
+from openai import OpenAI
+import webbrowser
+import json
+import os
+
+# -----------------------------
+# Embedded GitHub instructions & .gitignore info
+# -----------------------------
+GITHUB_README = """
+# GPT-5 Chat App
+
+A dark mode desktop chat app using GPT-5, with Free, Plus ($5), and Premium ($15) tiers.  
+Users enter their OpenAI API key to chat. Upgrade via external website and unlock code.
+
+## Features
+- Free tier: GPT-5
+- Plus tier ($5): GPT-5 Pro
+- Premium tier ($15): GPT-5 Pro with advanced features
+  - Temperature control slider
+  - Custom system prompt
+  - Extended conversation memory
+- Dark mode GUI
+- Subscription remembered locally
+- External website button for signup/payment
+- Unlock code input to switch tiers
+
+## Setup
+1. Install Python 3.10+
+2. Install dependencies: pip install openai
+3. Run the app: python gpt5_chat_app.py
+
+## Notes
+- Replace demo unlock codes in the app with your website codes.
+- Never commit your API key.
+"""
+
+GITIGNORE_INFO = """
+# Python cache files
+__pycache__/
+*.pyc
+
+# Local subscription file
+subscription.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment / virtualenv
+.env/
+venv/
+"""
+
+# Optional: print instructions to console if needed
+#print(GITHUB_README)
+#print(GITIGNORE_INFO)
+
+# -----------------------------
+# Local subscription file
+# -----------------------------
+SUBS_FILE = "subscription.json"
+
+def load_subscription():
+    if os.path.exists(SUBS_FILE):
+        with open(SUBS_FILE, "r") as f:
+            data = json.load(f)
+            return data.get("subscription", "free")
+    return "free"
+
+def save_subscription(sub):
+    with open(SUBS_FILE, "w") as f:
+        json.dump({"subscription": sub}, f)
+
+# -----------------------------
+# Ask for API key
+# -----------------------------
+root = tk.Tk()
+root.withdraw()  # hide main window while asking
+
+api_key = simpledialog.askstring("API Key", "Enter your OpenAI API key:")
+if not api_key:
+    raise ValueError("API key is required.")
+
+client = OpenAI(api_key=api_key)
+conversation = []
+
+# -----------------------------
+# Load previous subscription
+# -----------------------------
+subscription = load_subscription()
+PAID_USER = subscription in ["plus", "premium"]
+
+# Default Premium settings
+temperature = 0.7
+system_prompt = ""
+
+# -----------------------------
+# Chat function
+# -----------------------------
+def chat(user_msg):
+    conversation.append({"role": "user", "content": user_msg})
+
+    if subscription == "free":
+        model_name = "gpt-5"
+    else:  # Plus or Premium
+        model_name = "gpt-5-pro"
+
+    # Premium features
+    global temperature, system_prompt
+    if subscription == "premium":
+        if system_prompt:
+            conversation.insert(0, {"role": "system", "content": system_prompt})
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=conversation,
+        temperature=temperature
+    )
+    reply = response.choices[0].message.content
+    conversation.append({"role": "assistant", "content": reply})
+    return reply
+
+# -----------------------------
+# Upgrade / Payment functions
+# -----------------------------
+def open_payment_website():
+    webbrowser.open("https://your-website.com")  # replace with your site
+
+def enter_unlock_code():
+    global subscription, PAID_USER, temperature, system_prompt
+    code = simpledialog.askstring("Unlock Code", "Enter your unlock code from the website:")
+    if not code:
+        return
+    # Demo codes
+    if code.lower() == "pluscode123":
+        subscription = "plus"
+        PAID_USER = True
+        save_subscription(subscription)
+        messagebox.showinfo("Unlocked", "You are now a Plus user!")
+    elif code.lower() == "premiumcode123":
+        subscription = "premium"
+        PAID_USER = True
+        save_subscription(subscription)
+        temperature = 0.9
+        system_prompt = "You are GPT-5 Pro Premium, giving advanced answers."
+        messagebox.showinfo("Unlocked", "You are now a Premium user!")
+    else:
+        messagebox.showwarning("Invalid", "Invalid unlock code!")
+    root.title(f"GPT-5 Chat ({subscription.capitalize()})")
+
+def set_temperature(val):
+    global temperature
+    temperature = float(val)
+
+def edit_system_prompt():
+    global system_prompt
+    prompt = simpledialog.askstring("System Prompt", "Enter system instructions for GPT-5 Pro Premium:")
+    if prompt is not None:
+        system_prompt = prompt
+        messagebox.showinfo("Saved", "System prompt updated!")
+
+# -----------------------------
+# GUI Setup - Dark Mode
+# -----------------------------
+root.deiconify()
+root.title(f"GPT-5 Chat ({subscription.capitalize()})")
+root.configure(bg="#1e1e1e")
+
+chat_box = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=25,
+                                    bg="#2e2e2e", fg="#ffffff", insertbackground="#ffffff")
+chat_box.pack(padx=10, pady=10)
+
+entry = tk.Entry(root, width=60, bg="#3e3e3e", fg="#ffffff", insertbackground="#ffffff")
+entry.pack(side=tk.LEFT, padx=(10,0), pady=(0,10))
+
+send_btn = tk.Button(root, text="Send", command=lambda: send_message(), bg="#555555", fg="#ffffff")
+send_btn.pack(side=tk.LEFT, padx=(5,10), pady=(0,10))
+
+pay_btn = tk.Button(root, text="Signup / Pay", command=open_payment_website, bg="#555555", fg="#ffffff")
+pay_btn.pack(side=tk.LEFT, padx=(5,10), pady=(0,10))
+
+code_btn = tk.Button(root, text="Enter Unlock Code", command=enter_unlock_code, bg="#555555", fg="#ffffff")
+code_btn.pack(side=tk.LEFT, padx=(5,10), pady=(0,10))
+
+# Premium feature controls
+if subscription == "premium":
+    temp_slider = tk.Scale(root, label="Temperature", from_=0.0, to=1.0, resolution=0.05,
+                           orient=tk.HORIZONTAL, command=set_temperature, bg="#1e1e1e", fg="#ffffff",
+                           highlightbackground="#1e1e1e", troughcolor="#555555")
+    temp_slider.set(temperature)
+    temp_slider.pack(side=tk.LEFT, padx=(5,10), pady=(0,10))
+
+    system_btn = tk.Button(root, text="Edit System Prompt", command=edit_system_prompt, bg="#555555", fg="#ffffff")
+    system_btn.pack(side=tk.LEFT, padx=(5,10), pady=(0,10))
+
+# -----------------------------
+# Send message function
+# -----------------------------
+def send_message(event=None):
+    msg = entry.get().strip()
+    if not msg:
+        return
+    chat_box.insert(END, f"You: {msg}\n")
+    entry.delete(0, END)
+    root.update()
+    reply = chat(msg)
+    chat_box.insert(END, f"{'GPT-5 Pro' if PAID_USER else 'GPT-5'}: {reply}\n\n")
+    chat_box.see(END)
+
+entry.bind("<Return>", send_message)
+
+root.mainloop()
