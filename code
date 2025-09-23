@@ -1,0 +1,96 @@
+from PyQt6 import QtWidgets, QtCore
+from openai import OpenAI
+import sys, os, json
+from datetime import datetime
+
+# -----------------------------
+# Local storage
+# -----------------------------
+DATA_FILE = "app_data.json"
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE,"r") as f:
+            return json.load(f)
+    return {"subscription":"free","usage":0,"system_prompt":"","temperature":0.7}
+def save_data(data):
+    with open(DATA_FILE,"w") as f:
+        json.dump(data,f)
+data = load_data()
+FREE_DAILY_LIMIT = 50
+
+# -----------------------------
+# Ask API key
+# -----------------------------
+app = QtWidgets.QApplication(sys.argv)
+api_key, ok = QtWidgets.QInputDialog.getText(None,"API Key","Enter your OpenAI API Key:")
+if not ok or not api_key:
+    sys.exit("API key required.")
+client = OpenAI(api_key=api_key)
+
+# -----------------------------
+# GPT reply
+# -----------------------------
+def gpt_reply(user_msg):
+    messages = [{"role":"user","content":user_msg}]
+    if data["system_prompt"]:
+        messages.insert(0,{"role":"system","content":data["system_prompt"]})
+    model = "gpt-5" if data["subscription"]=="free" else "gpt-5-pro"
+    response = client.chat.completions.create(model=model,messages=messages,temperature=data.get("temperature",0.7))
+    return response.choices[0].message.content
+
+# -----------------------------
+# Main Window
+# -----------------------------
+class GeminiChat(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Gemini GPT Desktop")
+        self.resize(700,900)
+        self.setStyleSheet("background-color:#1e1e2e; color:white; font:11pt 'Segoe UI';")
+        self.layout = QtWidgets.QVBoxLayout(self)
+
+        # Banner
+        self.banner = QtWidgets.QLabel("")
+        self.banner.setStyleSheet("background-color:#ffaa00; color:black; padding:5px;")
+        self.layout.addWidget(self.banner)
+
+        # Chat area
+        self.chat_container = QtWidgets.QScrollArea()
+        self.chat_container.setWidgetResizable(True)
+        self.chat_content = QtWidgets.QWidget()
+        self.chat_content_layout = QtWidgets.QVBoxLayout(self.chat_content)
+        self.chat_content_layout.addStretch()
+        self.chat_container.setWidget(self.chat_content)
+        self.layout.addWidget(self.chat_container,8)
+
+        # Input bar
+        self.input_layout = QtWidgets.QHBoxLayout()
+        self.entry = QtWidgets.QLineEdit()
+        self.entry.setStyleSheet("background-color:#2e2e3e; color:white; padding:5px; border-radius:5px;")
+        self.send_btn = QtWidgets.QPushButton("Send")
+        self.send_btn.setStyleSheet("background-color:#4a90e2; border:none; padding:5px; border-radius:5px;")
+        self.send_btn.clicked.connect(self.send_message)
+        self.entry.returnPressed.connect(self.send_message)
+        self.input_layout.addWidget(self.entry)
+        self.input_layout.addWidget(self.send_btn)
+        self.layout.addLayout(self.input_layout)
+
+        # Controls
+        self.controls_layout = QtWidgets.QHBoxLayout()
+        self.reset_btn = QtWidgets.QPushButton("Reset Conversation")
+        self.reset_btn.setStyleSheet("background-color:#333344; color:white; padding:5px; border-radius:5px;")
+        self.reset_btn.clicked.connect(self.reset_convo)
+        self.controls_layout.addWidget(self.reset_btn)
+        self.layout.addLayout(self.controls_layout)
+
+        self.update_banner()
+
+    def update_banner(self):
+        if data["subscription"]=="free":
+            self.banner.setText("💡 Free users: 50 messages/day limit applied!")
+
+    def add_chat(self, role, text):
+        ts = datetime.now().strftime("%H:%M")
+        label = QtWidgets.QLabel(f"{text} ({ts})")
+        label.setWordWrap(True)
+        if role=="user":
