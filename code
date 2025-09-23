@@ -1,0 +1,203 @@
+from PyQt6 import QtWidgets, QtCore, QtGui
+import sys, random, json, os
+from datetime import datetime
+import webbrowser
+
+# -----------------------------
+# Data
+# -----------------------------
+DATA_FILE = "app_data.json"
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE,"r") as f:
+            return json.load(f)
+    return {"subscription":"free","usage":0,"system_prompt":"","temperature":0.7}
+def save_data(data):
+    with open(DATA_FILE,"w") as f:
+        json.dump(data,f)
+data = load_data()
+FREE_DAILY_LIMIT = 50
+UNLOCK_CODES = {"plus":"PLUS123","premium":"PREMIUM123"}
+
+# -----------------------------
+# GPT reply simulation
+# -----------------------------
+def generate_reply(user_msg):
+    base = [f"Analyzing '{user_msg}' ...", f"Responding to '{user_msg}' ..."]
+    reply = random.choice(base)
+    if data["subscription"]=="free":
+        reply += "\n💡 Upgrade to Plus for instant answers!"
+    elif data["subscription"]=="plus":
+        reply = reply.replace("...", " - Here you go!")
+    else:  # Premium
+        prompt = data["system_prompt"]
+        if prompt: reply = f"[{prompt}] {reply}"
+        if random.random() < data.get("temperature",0.7):
+            reply = reply.upper()
+    return reply
+
+# -----------------------------
+# Main Window
+# -----------------------------
+class GeminiChat(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Gemini GPT Desktop")
+        self.resize(1000,700)
+        self.setStyleSheet("background-color:#1e1e2e; color:white; font:11pt 'Segoe UI';")
+        self.layout = QtWidgets.QHBoxLayout(self)
+        
+        # Sidebar
+        self.sidebar = QtWidgets.QVBoxLayout()
+        self.sub_label = QtWidgets.QLabel(f"Subscription: {data['subscription'].capitalize()}")
+        self.sidebar.addWidget(self.sub_label)
+        self.add_sidebar_button("Upgrade / Pay", lambda: webbrowser.open("https://your-website.com"))
+        self.add_sidebar_button("Enter Unlock Code", self.enter_code)
+        self.add_sidebar_button("Reset Conversation", self.reset_convo)
+        
+        # Premium controls
+        if data["subscription"]=="premium":
+            self.temp_label = QtWidgets.QLabel("Temperature")
+            self.sidebar.addWidget(self.temp_label)
+            self.temp_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+            self.temp_slider.setMinimum(0)
+            self.temp_slider.setMaximum(100)
+            self.temp_slider.setValue(int(data.get("temperature",0.7)*100))
+            self.temp_slider.valueChanged.connect(self.set_temperature)
+            self.sidebar.addWidget(self.temp_slider)
+            
+            self.sys_btn = QtWidgets.QPushButton("Edit System Prompt")
+            self.sys_btn.clicked.connect(self.edit_prompt)
+            self.sidebar.addWidget(self.sys_btn)
+        
+        self.layout.addLayout(self.sidebar,1)
+        
+        # Chat area
+        self.chat_layout = QtWidgets.QVBoxLayout()
+        self.banner = QtWidgets.QLabel("")
+        self.banner.setStyleSheet("background-color:#ffaa00; color:black; padding:5px;")
+        self.chat_layout.addWidget(self.banner)
+        self.chat_container = QtWidgets.QScrollArea()
+        self.chat_container.setWidgetResizable(True)
+        self.chat_content = QtWidgets.QWidget()
+        self.chat_content_layout = QtWidgets.QVBoxLayout(self.chat_content)
+        self.chat_content_layout.addStretch()
+        self.chat_container.setWidget(self.chat_content)
+        self.chat_layout.addWidget(self.chat_container)
+        
+        # Input bar
+        self.input_layout = QtWidgets.QHBoxLayout()
+        self.entry = QtWidgets.QLineEdit()
+        self.entry.setStyleSheet("background-color:#2e2e3e; color:white; padding:5px; border-radius:5px;")
+        self.send_btn = QtWidgets.QPushButton("Send")
+        self.send_btn.setStyleSheet("background-color:#4a90e2; border:none; padding:5px; border-radius:5px;")
+        self.send_btn.clicked.connect(self.send_message)
+        self.entry.returnPressed.connect(self.send_message)
+        self.input_layout.addWidget(self.entry)
+        self.input_layout.addWidget(self.send_btn)
+        self.chat_layout.addLayout(self.input_layout)
+        
+        self.layout.addLayout(self.chat_layout,4)
+        self.update_banner()
+    
+    def add_sidebar_button(self,text,func):
+        btn = QtWidgets.QPushButton(text)
+        btn.setStyleSheet("background-color:#333344; border:none; padding:8px; border-radius:5px;")
+        btn.clicked.connect(func)
+        self.sidebar.addWidget(btn)
+    
+    def update_banner(self):
+        if data["subscription"]=="free":
+            self.banner.setText("💡 Free users: 50 messages/day. Upgrade to Plus!")
+        else:
+            self.banner.setText("")
+    
+    def add_chat(self, role, text):
+        ts = datetime.now().strftime("%H:%M")
+        label = QtWidgets.QLabel(f"{text} ({ts})")
+        label.setWordWrap(True)
+        if role=="user":
+            label.setStyleSheet("background-color:#4a90e2; color:white; padding:5px; border-radius:5px;")
+            self.chat_content_layout.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        else:
+            label.setStyleSheet("background-color:#00ff99; color:black; padding:5px; border-radius:5px;")
+            self.chat_content_layout.addWidget(label, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.chat_container.verticalScrollBar().setValue(self.chat_container.verticalScrollBar().maximum())
+    
+    def send_message(self):
+        msg = self.entry.text().strip()
+        if not msg: return
+        self.entry.clear()
+        self.add_chat("user", msg)
+        if data["subscription"]=="free":
+            if data["usage"]>=FREE_DAILY_LIMIT:
+                QtWidgets.QMessageBox.warning(self,"Limit reached","🚫 Free daily limit reached.")
+                return
+            data["usage"]+=1
+            self.add_chat("bot","GPT-5 is thinking...")
+            # Random delay 4–6 sec
+            QtCore.QTimer.singleShot(random.randint(4000,6000), lambda: self.display_reply(msg))
+            # Occasional popup
+            if random.random()<0.15:
+                QtWidgets.QMessageBox.warning(self,"Oops!","Something went wrong. Try again!")
+        else:
+            self.display_reply(msg)
+        save_data(data)
+    
+    def display_reply(self,msg):
+        reply = generate_reply(msg)
+        self.add_chat("bot", reply)
+    
+    def enter_code(self):
+        code, ok = QtWidgets.QInputDialog.getText(self,"Unlock Code","Enter unlock code:")
+        if ok:
+            if code==UNLOCK_CODES["plus"]:
+                data["subscription"]="plus"
+                self.sub_label.setText("Subscription: Plus")
+            elif code==UNLOCK_CODES["premium"]:
+                data["subscription"]="premium"
+                self.sub_label.setText("Subscription: Premium")
+                # Show premium controls
+                self.temp_label = QtWidgets.QLabel("Temperature")
+                self.sidebar.addWidget(self.temp_label)
+                self.temp_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+                self.temp_slider.setMinimum(0)
+                self.temp_slider.setMaximum(100)
+                self.temp_slider.setValue(int(data.get("temperature",0.7)*100))
+                self.temp_slider.valueChanged.connect(self.set_temperature)
+                self.sidebar.addWidget(self.temp_slider)
+                
+                self.sys_btn = QtWidgets.QPushButton("Edit System Prompt")
+                self.sys_btn.clicked.connect(self.edit_prompt)
+                self.sidebar.addWidget(self.sys_btn)
+            else:
+                QtWidgets.QMessageBox.warning(self,"Invalid","Code invalid!")
+            save_data(data)
+            self.update_banner()
+    
+    def reset_convo(self):
+        for i in reversed(range(self.chat_content_layout.count()-1)):
+            widget = self.chat_content_layout.itemAt(i).widget()
+            if widget: widget.deleteLater()
+        if data["subscription"]=="free":
+            data["usage"]=0
+        save_data(data)
+    
+    def edit_prompt(self):
+        prompt, ok = QtWidgets.QInputDialog.getText(self,"System Prompt","Enter system instructions:")
+        if ok:
+            data["system_prompt"]=prompt
+            save_data(data)
+            QtWidgets.QMessageBox.information(self,"Saved","System prompt updated!")
+    
+    def set_temperature(self,val):
+        data["temperature"]=val/100
+        save_data(data)
+
+# -----------------------------
+# Run
+# -----------------------------
+app_window = QtWidgets.QApplication(sys.argv)
+window = GeminiChat()
+window.show()
+sys.exit(app_window.exec())
