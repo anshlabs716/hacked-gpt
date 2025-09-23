@@ -1,0 +1,79 @@
+Gemini GPT Desktop — Instructions
+Overview
+
+A Gemini-style dark-mode desktop chat app with Free, Plus, and Premium tiers.
+Free tier uses GPT-5, Premium can use GPT-5 Pro with advanced features.
+
+Setup
+
+Install Python 3.10+
+Make sure Python is installed and added to your PATH.
+
+Install dependencies
+Open a terminal / command prompt and run:
+
+pip install PyQt6 openai
+
+
+Run the app
+
+python yourfilename.py
+
+
+First launch will ask for your OpenAI API key.
+
+Enter your key to start chatting.
+
+Usage
+
+Free tier
+
+Max 50 messages per day
+
+Responses come from GPT-5
+
+Banner reminds you of limits
+
+Occasional simulated errors or delays to mimic “Free tier experience”
+
+Plus / Premium (requires unlock codes you define)
+
+GPT-5 Pro responses
+
+Premium features include:
+
+System prompt customization
+
+Temperature slider for response randomness
+
+Reset conversation
+
+Clears chat history
+
+Resets daily free-tier usage
+
+Toggle theme
+
+Switch between dark and light mode
+
+Local Storage
+
+Data saved in app_data.json includes:
+
+Subscription tier
+
+Daily usage
+
+System prompt
+
+Temperature setting
+
+Notes
+
+Do not commit your OpenAI API key
+
+Free tier intentionally simulates slower responses and errors
+
+Unlock codes and Premium features are configurable inside the code
+
+The app is fully local except for GPT API requests
