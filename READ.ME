@@ -1,0 +1,28 @@
+these are the istructions # Gemini GPT Desktop Chat App
+
+Gemini-style dark-mode desktop chat app simulating GPT-5, with Free tier access.  
+The app includes a top banner, scrollable chat area, input bar at the bottom, and buttons for resetting the conversation. Free users have a daily message limit and occasional delays or popups to simulate restrictions. Premium features are locked in this version.
+
+## How to Use
+
+1. **Install Python**: Make sure Python 3.10 or higher is installed and added to your PATH.
+2. **Install PyQt6**: Open terminal/command prompt and run `pip install PyQt6`.
+3. **Download or Clone Repo**: Use `git clone https://github.com/your-username/your-repo-name.git` or download the ZIP and extract it.
+4. **Navigate to App Folder**: Open terminal in the folder where the code is saved: `cd your-repo-name`.
+5. **Run the App**: Execute `python gemini_chat.py` to launch the app.
+6. **Use the Chat**: Type your messages in the input box at the bottom and press Enter or click Send.  
+   Free users can send up to 50 messages per day. Occasional popups simulate system delays.
+7. **Reset Conversation**: Click the “Reset Conversation” button below the input bar to clear the chat and reset the daily message counter.
+
+## Optional: Create a Desktop Executable
+
+1. **Install PyInstaller**: `pip install pyinstaller`.
+2. **Build Executable**: Run `pyinstaller --onefile gemini_chat.py`.
+3. **Locate Executable**: The executable will appear in the `dist` folder. You can move this anywhere and run it without Python installed.
+
+## Notes
+
+- The app stores local usage data in `app_data.json`. Do not commit this file to GitHub.
+- Colors, messages, and UI elements can be customized in the source code.
+- This version simulates GPT-5 responses and does **not require an API key**.
+- License: MIT.
