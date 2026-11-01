@@ -9,7 +9,8 @@ this is infinite gpt 5 for free then plus 5$ and premium 15$ a month
 
 ```text
 hacked-gpt/
+├── code
 ├── READ.ME
-├── README.md
-└── code
+└── README.md
 ```
+
