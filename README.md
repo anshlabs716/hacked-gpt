@@ -11,3 +11,14 @@ hacked-gpt/
 ├── READ.ME
 ├── README.md
 ```
+
+---
+
+## 📁 Project Files
+
+```text
+hacked-gpt/
+├── code
+├── READ.ME
+└── README.md
+```
